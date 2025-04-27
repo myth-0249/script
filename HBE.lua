@@ -28,16 +28,16 @@ madeByLabel.Position = UDim2.new(0.5, -200, 0.4, -25)
 madeByLabel.BackgroundTransparency = 1
 madeByLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
 madeByLabel.Font = Enum.Font.SourceSansBold
-madeByLabel.TextSize = 80
+madeByLabel.TextSize = 36
 madeByLabel.Text = "Made By @Myth0249"
 madeByLabel.TextStrokeTransparency = 0.5
 madeByLabel.TextTransparency = 0
 
 -- Fade out the label after 2 seconds
-game:GetService("TweenService"):Create(madeByLabel, TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+game:GetService("TweenService"):Create(madeByLabel, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
 
 -- Wait for the fade to finish and then hide the label
-wait(5)
+wait(2)
 
 madeByLabel:Destroy()  -- Remove the label after fading out
 
@@ -55,6 +55,8 @@ local HITBOX_SIZE_VALUE = 15 -- Default Size
 local HITBOX_COLOUR = Color3.fromRGB(255, 255, 0) -- Yellow
 local DefaultSize = Vector3.new(2, 2, 1)
 
+local teamCheckEnabled = false -- Variable to control team check toggle
+
 -- Character Parent
 local function GetCharParent()
     repeat task.wait() until LocalPlayer.Character
@@ -66,19 +68,58 @@ local function GetCharParent()
 end
 CHAR_PARENT = GetCharParent()
 
--- Hitbox Manager
+-- Hitbox Manager with Team Check
 local function UpdateHitboxes()
+    local teams = {}
+    local shouldApplyHitboxes = false
+
+    -- Collect all teams in the game
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = CHAR_PARENT:FindFirstChild(player.Name)
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                if getgenv().HBE and player.Team ~= LocalPlayer.Team then
-                    local size = Vector3.new(HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE)
-                    char.HumanoidRootPart.Size = size
+        if player.Team and player.Team ~= LocalPlayer.Team then
+            if not teams[player.Team] then
+                teams[player.Team] = {}
+            end
+            table.insert(teams[player.Team], player)
+            shouldApplyHitboxes = true
+        end
+    end
+
+    -- If only one team exists, apply to everyone except yourself
+    if not teamCheckEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local char = CHAR_PARENT:FindFirstChild(player.Name)
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    char.HumanoidRootPart.Size = Vector3.new(HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE)
                     char.HumanoidRootPart.Color = HITBOX_COLOUR
                     char.HumanoidRootPart.Transparency = 0.5
                     char.HumanoidRootPart.CanCollide = false
-                else
+                    shouldApplyHitboxes = true
+                end
+            end
+        end
+    else
+        -- Apply to opposite teams
+        for _, teamPlayers in pairs(teams) do
+            for _, player in ipairs(teamPlayers) do
+                local char = CHAR_PARENT:FindFirstChild(player.Name)
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    char.HumanoidRootPart.Size = Vector3.new(HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE, HITBOX_SIZE_VALUE)
+                    char.HumanoidRootPart.Color = HITBOX_COLOUR
+                    char.HumanoidRootPart.Transparency = 0.5
+                    char.HumanoidRootPart.CanCollide = false
+                    shouldApplyHitboxes = true
+                end
+            end
+        end
+    end
+
+    -- If no valid players meet the conditions, disable hitboxes
+    if not shouldApplyHitboxes then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local char = CHAR_PARENT:FindFirstChild(player.Name)
+                if char and char:FindFirstChild("HumanoidRootPart") then
                     char.HumanoidRootPart.Size = DefaultSize
                     char.HumanoidRootPart.Transparency = 1
                     char.HumanoidRootPart.CanCollide = false
@@ -156,6 +197,30 @@ RunService.RenderStepped:Connect(function()
         sliderButton.Position = UDim2.new(relative, -10, 0.5, -10)
         HITBOX_SIZE_VALUE = math.floor(5 + (relative * 45)) -- From 5 to 50
         sliderValueText.Text = "Size: " .. HITBOX_SIZE_VALUE
+    end
+end)
+
+-- Team Check Toggle Button
+local teamCheckToggle = Instance.new("TextButton", screenGui)
+teamCheckToggle.Size = UDim2.new(0, 150, 0, 50)
+teamCheckToggle.Position = UDim2.new(0, 20, 0.9, 0)
+teamCheckToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+teamCheckToggle.TextColor3 = Color3.fromRGB(255, 255, 0)
+teamCheckToggle.Font = Enum.Font.SourceSansBold
+teamCheckToggle.TextSize = 24
+teamCheckToggle.Text = "Team Check: OFF"
+teamCheckToggle.Active = true
+teamCheckToggle.Draggable = true
+
+-- Team Check Toggle logic
+teamCheckToggle.MouseButton1Click:Connect(function()
+    teamCheckEnabled = not teamCheckEnabled
+    if teamCheckEnabled then
+        teamCheckToggle.Text = "Team Check: ON"
+        teamCheckToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    else
+        teamCheckToggle.Text = "Team Check: OFF"
+        teamCheckToggle.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
     end
 end)
 
